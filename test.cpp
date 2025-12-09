@@ -1,21 +1,33 @@
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-extern "C" {
+extern "C"
+{
 #include "cstack.h"
 }
 
-TEST(AllAPITest, BadStackHandler)
+class AllAPITest : public ::testing::TestWithParam<hstack_t>
 {
-    stack_free(-1);
-    EXPECT_EQ(stack_valid_handler(-1), 1);
-    EXPECT_EQ(stack_size(-1), 0u);
+};
+
+TEST_P(AllAPITest, InvalidStackHandlers)
+{
+    const auto handler = GetParam();
+    stack_free(handler);
+    EXPECT_EQ(stack_valid_handler(handler), 1);
+    EXPECT_EQ(stack_size(handler), 0u);
     const int data_in = 1;
-    stack_push(-1, &data_in, sizeof(data_in));
+    stack_push(handler, &data_in, sizeof(data_in));
     int data_out = 0;
-    EXPECT_EQ(stack_pop(-1, &data_out, sizeof(data_out)), 0u);
+    EXPECT_EQ(stack_pop(handler, &data_out, sizeof(data_out)), 0u);
     EXPECT_EQ(data_out, 0);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    InvalidHandlers,
+    AllAPITest,
+    ::testing::Values(-1000, -100, -10, -1, 0, 1, 10, 100, 1000)
+);
 
 TEST(AllocationTests, SingleAllocation)
 {
@@ -118,9 +130,11 @@ TEST_F(ModifyTests, SeveralPushPop)
     }
     for (size_t i = 0; i < size; ++i)
     {
-        EXPECT_EQ(stack_pop(stack, &data_out[i], sizeof(data_out[i])), sizeof(data_out[i]));
+        EXPECT_EQ(
+            stack_pop(stack, &data_out[i], sizeof(data_out[i])),
+            sizeof(data_out[i])
+        );
         EXPECT_EQ(stack_size(stack), size - 1u - i);
     }
     EXPECT_THAT(data_out, ::testing::ElementsAre(2, 1, 0));
 }
-
